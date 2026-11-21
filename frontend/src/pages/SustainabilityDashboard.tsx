@@ -111,11 +111,10 @@ export const SustainabilityDashboard: React.FC = () => {
             <div key={idx} className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-xs">{sdg.goal}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  sdg.status === 'Exceeding' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                  sdg.status === 'On Track' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' :
-                  'bg-amber-950 text-amber-400 border border-amber-800'
-                }`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${sdg.status === 'Exceeding' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                    sdg.status === 'On Track' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' :
+                      'bg-amber-950 text-amber-400 border border-amber-800'
+                  }`}>
                   {sdg.status}
                 </span>
               </div>
@@ -124,7 +123,7 @@ export const SustainabilityDashboard: React.FC = () => {
                 <span className="font-mono font-bold text-emerald-400">{sdg.score} / 100</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full"
                   style={{ width: `${sdg.score}%` }}
                 />
