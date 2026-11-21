@@ -50,9 +50,9 @@ export const getAgricultureForPanchayat = (gp: GramPanchayat) => {
   }
 
   const soilSensors = [
-    { id: `${gp.id}-SNS-01`, location: `${name} Ward 1 Agri-Zone`, moisture: '64%', npk_ratio: '120:45:62', ph: 6.8, ec: '0.42 dS/m', battery: '96%' },
-    { id: `${gp.id}-SNS-02`, location: `${name} Tail-End Sluice Cross`, moisture: '58%', npk_ratio: '115:42:58', ph: 7.1, ec: '0.38 dS/m', battery: '92%' },
-    { id: `${gp.id}-SNS-03`, location: `${name} Lake Catchment Basin`, moisture: '72%', npk_ratio: '135:50:70', ph: 6.9, ec: '0.46 dS/m', battery: '98%' }
+    { id: `${gp.id}-SNS-01`, sector: `${name} Ward 1 Agri-Zone`, location: `${name} Ward 1 Agri-Zone`, moisture_pct: 64, moisture: '64%', npk_ratio: '120:45:62', ph: 6.8, n: 190, p: 26, k: 215, temp_c: 27.2, ec: '0.42 dS/m', battery: '96%' },
+    { id: `${gp.id}-SNS-02`, sector: `${name} Tail-End Sluice Cross`, location: `${name} Tail-End Sluice Cross`, moisture_pct: 58, moisture: '58%', npk_ratio: '115:42:58', ph: 7.1, n: 210, p: 31, k: 235, temp_c: 26.5, ec: '0.38 dS/m', battery: '92%' },
+    { id: `${gp.id}-SNS-03`, sector: `${name} Lake Catchment Basin`, location: `${name} Lake Catchment Basin`, moisture_pct: 72, moisture: '72%', npk_ratio: '135:50:70', ph: 6.9, n: 175, p: 24, k: 200, temp_c: 28.1, ec: '0.46 dS/m', battery: '98%' }
   ];
 
   return {
@@ -62,10 +62,11 @@ export const getAgricultureForPanchayat = (gp: GramPanchayat) => {
     crops: cropList,
     soil_sensors: soilSensors,
     mandi_prices: [
-      { crop: 'Sugarcane', price_per_quintal: 3150, change_pct: '+2.4%', mandi: `${gp.taluk} APMC Market` },
-      { crop: 'Paddy (Grade A)', price_per_quintal: 2320, change_pct: '+1.1%', mandi: `${gp.taluk} APMC Market` },
-      { crop: 'Ragi', price_per_quintal: 3840, change_pct: '+0.8%', mandi: 'Mandya Central APMC' },
-      { crop: 'Silk Cocoon', price_per_quintal: 48500, change_pct: '+3.5%', mandi: 'Ramanagara Silk Market' }
+      { commodity: 'Sugarcane (FRP Mill Gate)', crop: 'Sugarcane', price: '₹3,150 / Tonne', price_per_quintal: 3150, trend: '+4.2%', change_pct: '+4.2%', market: `${gp.taluk} Sugars APMC`, mandi: `${gp.taluk} APMC Market` },
+      { commodity: 'Paddy (Jyothi Grade A)', crop: 'Paddy (Grade A)', price: '₹2,380 / Quintal', price_per_quintal: 2380, trend: '+1.8%', change_pct: '+1.8%', market: 'Mysuru Bandipalya APMC', mandi: `${gp.taluk} APMC Market` },
+      { commodity: 'Ragi (Finger Millet)', crop: 'Ragi', price: '₹4,120 / Quintal', price_per_quintal: 4120, trend: '+5.1%', change_pct: '+5.1%', market: `${gp.taluk} APMC Yard`, mandi: 'Mandya Central APMC' },
+      { commodity: 'Silk Cocoon (Bivoltine)', crop: 'Silk Cocoon', price: '₹680 / Kg', price_per_quintal: 48500, trend: '+8.3%', change_pct: '+8.3%', market: 'Ramanagara Silk Market', mandi: 'Ramanagara Silk Market' },
+      { commodity: 'Banana (Yellaki)', crop: 'Banana', price: '₹38 / Kg', price_per_quintal: 3800, trend: '-2.1%', change_pct: '-2.1%', market: 'Maddur Fruit Mandi', mandi: 'Maddur Mandi' }
     ]
   };
 };
@@ -256,5 +257,37 @@ export const getForecastForPanchayat = (gp: GramPanchayat) => {
     solar_yield_kwh: [baseSolar, baseSolar + 60, baseSolar + 30, baseSolar + 150, baseSolar + 300, baseSolar + 450, baseSolar + 1100],
     pci_road_decay_index: [81.0, 80.9, 80.8, 80.4, 79.8, 78.5, 71.0],
     crop_yield_health_score: [gp.agriculture_score, gp.agriculture_score, gp.agriculture_score + 1, gp.agriculture_score, gp.agriculture_score - 1, gp.agriculture_score + 3, gp.agriculture_score + 6]
+  };
+};
+
+// 8. Sustainability Scoped Data
+export const getSustainabilityForPanchayat = (gp: GramPanchayat) => {
+  const name = getPanchayatDisplayName(gp);
+  const baseSdgScore = gp.carbon_score || 87.2;
+  return {
+    overall_sdg_score: baseSdgScore,
+    sustainability_score: baseSdgScore,
+    renewable_energy_share: Math.round((gp.electricity_score || 90) * 0.5) || 45.4,
+    water_recycling_rate: gp.water_score || 68.0,
+    carbon_neutrality_target_year: 2028,
+    green_cover_gain_5y: '+8.4%',
+    carbon_footprint_reduction_pct: 34.5,
+    water_recycled_liters: 120000,
+    organic_farming_acres: Math.round(gp.area_sq_km * 45),
+    sdg_goals: [
+      { goal: 'SDG 3: Good Health & Well-being', score: Math.min(99, (gp.health_score || 85) + 3), status: 'On Track' },
+      { goal: 'SDG 4: Quality Education', score: 88, status: 'On Track' },
+      { goal: 'SDG 6: Clean Water & Sanitation', score: Math.min(99, (gp.water_score || 84) + 5), status: 'On Track' },
+      { goal: 'SDG 7: Affordable & Clean Energy', score: Math.min(99, (gp.electricity_score || 91) + 2), status: 'Exceeding' },
+      { goal: 'SDG 9: Industry, Innovation & Infrastructure', score: 82, status: 'On Track' },
+      { goal: 'SDG 11: Sustainable Communities', score: gp.health_score || 86, status: 'On Track' },
+      { goal: 'SDG 13: Climate Action', score: gp.carbon_score || 85, status: 'On Track' }
+    ],
+    sdg_indices: [
+      { goal: 'SDG 6: Clean Water', score: Math.min(99, (gp.water_score || 84) + 5), status: 'On Target' },
+      { goal: 'SDG 7: Affordable Clean Energy', score: Math.min(99, (gp.electricity_score || 91) + 2), status: 'Exceeding' },
+      { goal: 'SDG 11: Sustainable Communities', score: gp.health_score || 86, status: 'On Target' },
+      { goal: 'SDG 13: Climate Action', score: gp.carbon_score || 85, status: 'On Target' }
+    ]
   };
 };

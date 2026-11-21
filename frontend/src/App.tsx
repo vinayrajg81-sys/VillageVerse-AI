@@ -6,6 +6,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { PanchayatProvider } from './context/PanchayatContext';
 import { AppLayout } from './components/layout/AppLayout';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Public Portal
 import { PublicPortal } from './pages/PublicPortal';
@@ -53,7 +54,7 @@ export function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {/* Master Government Application Layout with 20 Modules */}
-              <Route element={<AppLayout />}>
+              <Route element={<ErrorBoundary><AppLayout /></ErrorBoundary>}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/digital-twin" element={<DigitalTwin />} />
                 <Route path="/agriculture" element={<Agriculture />} />

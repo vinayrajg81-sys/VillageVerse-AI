@@ -17,6 +17,7 @@ import {
   getHealthcareForPanchayat,
   getPlannerForPanchayat,
   getForecastForPanchayat,
+  getSustainabilityForPanchayat,
   getPanchayatDisplayName
 } from './panchayatDataService';
 
@@ -149,11 +150,17 @@ export const api = {
     try {
       const { data: farmlandData, error } = await supabase.from('farmlands').select('*').eq('panchayat_id', gp.id);
       if (!error && farmlandData && farmlandData.length > 0) {
+        const formattedCrops = farmlandData.map((f: any) => ({
+          ...f,
+          name: f.name || f.crop_type || 'Crop Farmland',
+          area_acres: Number(f.area_acres) || 30,
+          avg_yield_tonnes: Number(f.predicted_yield_quintals ? f.predicted_yield_quintals / 10 : (f.avg_yield_tonnes || 25))
+        }));
         return {
           total_farmland_acres: Math.round(gp.area_sq_km * 125),
           active_farmers: Math.round(gp.households * 0.55),
           avg_soil_health_index: gp.agriculture_score,
-          crops: farmlandData,
+          crops: formattedCrops,
           soil_sensors: mockSoilSensors,
           mandi_prices: mockMandiPrices
         };
@@ -486,24 +493,16 @@ export const api = {
   },
 
   // 16. Sustainability & SDG Indicators
-  getSustainability: async () => {
+  getSustainability: async (gpParam?: GramPanchayat | string) => {
+    const gp = resolveActiveGP(gpParam);
     try {
       const res = await apiClient.get('/sustainability');
-      return res.data.sustainability;
-    } catch {
-      return {
-        sustainability_score: 88,
-        sdg_indices: [
-          { goal: 'SDG 6: Clean Water', score: 94, status: 'On Target' },
-          { goal: 'SDG 7: Affordable Clean Energy', score: 91, status: 'Exceeding' },
-          { goal: 'SDG 11: Sustainable Communities', score: 86, status: 'On Target' },
-          { goal: 'SDG 13: Climate Action', score: 84, status: 'On Target' }
-        ],
-        carbon_footprint_reduction_pct: 34.5,
-        water_recycled_liters: 120000,
-        organic_farming_acres: 480
-      };
-    }
+      if (res.data?.sustainability?.sdg_goals && res.data.sustainability.sdg_goals.length > 0) {
+        return res.data.sustainability;
+      }
+    } catch {}
+
+    return getSustainabilityForPanchayat(gp);
   },
 
   // 17. AI Copilot Chatbot
