@@ -146,23 +146,23 @@ export const supabaseAuth = {
         return existing;
       }
 
-      // 2. Insert new record
-      const { data: inserted, error: insertErr } = await supabase
+      // 2. Upsert profile record cleanly
+      const { data: upserted, error: upsertErr } = await supabase
         .from('profiles')
-        .insert([payload])
+        .upsert(payload, { onConflict: 'id' })
         .select()
         .maybeSingle();
 
-      if (!insertErr && inserted) {
-        return inserted;
+      if (!upsertErr && upserted) {
+        return upserted;
       }
 
       // If schema doesn't have user_id column, retry without user_id
-      if (insertErr && insertErr.message?.includes('user_id')) {
+      if (upsertErr && upsertErr.message?.includes('user_id')) {
         delete payload.user_id;
         const { data: insertedFallback } = await supabase
           .from('profiles')
-          .insert([payload])
+          .upsert(payload, { onConflict: 'id' })
           .select()
           .maybeSingle();
         return insertedFallback;

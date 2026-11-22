@@ -11,7 +11,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password?: string, targetRole?: UserRole) => Promise<{ success: boolean; redirectPath: string; error?: string }>;
-  signup: (userData: Partial<User>, password?: string) => Promise<{ success: boolean; redirectPath: string; error?: string }>;
+  signup: (userData: Partial<User>, password?: string) => Promise<{ success: boolean; redirectPath: string; error?: string; requiresVerification?: boolean; message?: string }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string; error?: string }>;
   switchRole: (role: UserRole) => void;
@@ -40,7 +40,7 @@ export const getRedirectPathForRole = (role: UserRole): string => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User>(() => {
+  const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('villageverse_user');
     return saved ? JSON.parse(saved) : mockUsers[0];
   });
@@ -89,18 +89,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const profile = await supabaseAuth.getProfile(session.user.id);
-        const activeRole = (profile?.role || session.user.user_metadata?.role || 'Citizen') as UserRole;
+        const meta = session.user.user_metadata || {};
+        const activeRole = (profile?.role || meta.role || 'Citizen') as UserRole;
         
         const liveUser: User = {
           id: session.user.id,
-          full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          full_name: profile?.full_name || meta.full_name || session.user.email?.split('@')[0] || 'User',
           email: session.user.email || '',
-          phone: profile?.phone || '9845012399',
+          phone: profile?.phone || meta.phone || '9845012399',
           role: activeRole,
-          department: profile?.department || 'General',
+          department: profile?.department || meta.department || 'General',
           panchayat_id: 'GP-KA-MND-042',
           is_verified: true,
-          created_at: new Date().toISOString().split('T')[0]
+          created_at: session.user.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
         };
 
         setUser(liveUser);
@@ -109,6 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('villageverse_token', session.access_token);
       } else if (event === 'SIGNED_OUT') {
         localStorage.removeItem('villageverse_token');
+        localStorage.removeItem('villageverse_user');
+        setUser(null);
+        setToken(null);
       }
     });
 
@@ -125,24 +129,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; redirectPath: string; error?: string }> => {
     setLoading(true);
 
+    const cleanEmail = email.trim().toLowerCase();
+    const demoEmails = [
+      'superadmin@villageverse.gov.in',
+      'panchayat@villageverse.gov.in',
+      'engineer@villageverse.gov.in',
+      'agriculture@villageverse.gov.in',
+      'healthcare@villageverse.gov.in',
+      'citizen@villageverse.gov.in',
+      'admin@villageverse.gov.in'
+    ];
+    const isDemoAccount = demoEmails.includes(cleanEmail);
+
     try {
-      // 1. Attempt Supabase Auth
-      const { user: authUser, session } = await supabaseAuth.signIn(email, password);
+      // 1. Attempt Real Supabase Auth
+      const { user: authUser, session } = await supabaseAuth.signIn(cleanEmail, password);
       
       if (authUser && session) {
         const profile = await supabaseAuth.getProfile(authUser.id);
-        const activeRole = (profile?.role || authUser.user_metadata?.role || targetRole || 'Citizen') as UserRole;
+        const meta = authUser.user_metadata || {};
+        const activeRole = (profile?.role || meta.role || targetRole || 'Citizen') as UserRole;
 
         const liveUser: User = {
           id: authUser.id,
-          full_name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Official User',
-          email: authUser.email || email,
-          phone: profile?.phone || '9845012399',
+          full_name: profile?.full_name || meta.full_name || authUser.email?.split('@')[0] || 'Official User',
+          email: authUser.email || cleanEmail,
+          phone: profile?.phone || meta.phone || '9845012399',
           role: activeRole,
-          department: profile?.department || 'General',
+          department: profile?.department || meta.department || 'General',
           panchayat_id: 'GP-KA-MND-042',
           is_verified: true,
-          created_at: new Date().toISOString().split('T')[0]
+          created_at: authUser.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
         };
 
         setUser(liveUser);
@@ -153,19 +170,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true, redirectPath: getRedirectPathForRole(activeRole) };
       }
     } catch (sbError: any) {
-      console.warn('[Supabase Login] Direct auth attempt note:', sbError.message);
+      console.warn('[Supabase Login] Direct auth attempt error:', sbError.message);
+
+      // If user typed a custom email/password (not a 1-click demo button), return actual Supabase error!
+      if (!isDemoAccount) {
+        setLoading(false);
+        const rawMsg = (sbError.message || '').toLowerCase();
+        let userFacingError = sbError.message || 'Login failed. Please verify your credentials.';
+
+        if (rawMsg.includes('email not confirmed')) {
+          userFacingError = 'Your email address has not been confirmed yet. Please click the confirmation link sent to your email, or disable "Confirm email" in Supabase Auth settings to enable immediate login.';
+        } else if (rawMsg.includes('invalid login credentials') || rawMsg.includes('invalid_grant')) {
+          userFacingError = 'Invalid email address or password. Please verify your credentials and try again.';
+        } else if (rawMsg.includes('network') || rawMsg.includes('fetch')) {
+          userFacingError = 'Unable to reach authentication server. Please check your internet connection.';
+        }
+
+        return {
+          success: false,
+          error: userFacingError,
+          redirectPath: '/login'
+        };
+      }
     }
 
-    // 2. Demo & Evaluator Fallback (Fast 1-Click Role Access)
-    let found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    // 2. Demo & Evaluator Fallback (Fast 1-Click Role Access for built-in demo buttons)
+    let found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
     if (!found && targetRole) {
       found = mockUsers.find(u => u.role === targetRole);
     }
     if (!found) {
       found = {
         id: `USR-${Date.now().toString().slice(-4)}`,
-        full_name: email.split('@')[0] || 'Official User',
-        email,
+        full_name: cleanEmail.split('@')[0] || 'Official User',
+        email: cleanEmail,
         phone: '9845019999',
         role: targetRole || 'Admin',
         department: 'Citizen & Community Portal',
@@ -194,77 +232,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (
     userData: Partial<User>, 
     password = 'password123'
-  ): Promise<{ success: boolean; redirectPath: string; error?: string }> => {
+  ): Promise<{ success: boolean; redirectPath: string; error?: string; requiresVerification?: boolean; message?: string }> => {
     setLoading(true);
-    const email = userData.email || `resident_${Date.now()}@villageverse.gov.in`;
+    const email = (userData.email || '').trim().toLowerCase();
     const assignedRole = (userData.role || 'Citizen') as UserRole;
+    const fullName = (userData.full_name || '').trim() || 'Village Resident';
+    const phone = (userData.phone || '').trim() || '9845012399';
+    const department = userData.department || (assignedRole === 'Citizen' ? 'Ward Resident' : assignedRole);
+
+    if (!email || !email.includes('@')) {
+      setLoading(false);
+      return { success: false, error: 'Please enter a valid email address.', redirectPath: '/signup' };
+    }
+
+    if (password.length < 6) {
+      setLoading(false);
+      return { success: false, error: 'Password must be at least 6 characters long.', redirectPath: '/signup' };
+    }
 
     try {
       const { user: authUser, session } = await supabaseAuth.signUp(email, password, {
-        full_name: userData.full_name || 'Village Resident',
+        full_name: fullName,
         role: assignedRole,
-        phone: userData.phone || '9876543210',
-        department: userData.department || 'General'
+        phone,
+        department
       });
 
+      // Check for duplicate account when user enumeration protection is enabled
+      if (authUser && Array.isArray(authUser.identities) && authUser.identities.length === 0) {
+        setLoading(false);
+        return {
+          success: false,
+          error: 'An account with this email address already exists. Please sign in instead.',
+          redirectPath: '/signup'
+        };
+      }
+
       if (authUser) {
-        // Automatically sync and create record in public.profiles table
+        // Attempt syncing profile to public.profiles table
         const profile = await supabaseAuth.syncProfile(authUser.id, {
           email,
-          full_name: userData.full_name || 'Village Resident',
+          full_name: fullName,
           role: assignedRole,
-          department: userData.department || 'General',
-          phone: userData.phone || '9876543210'
+          department,
+          phone
         });
 
-        const effectiveRole = (profile?.role || assignedRole) as UserRole;
+        // Case A: Supabase project has "Confirm email" enabled (session is null)
+        if (!session) {
+          setLoading(false);
+          return {
+            success: true,
+            requiresVerification: true,
+            message: `Account created successfully in Supabase! A verification email has been sent to ${email}. Please confirm your email in your inbox (or spam) before logging in.`,
+            redirectPath: '/login'
+          };
+        }
 
+        // Case B: Instant session active (email confirmation disabled or auto-confirmed)
+        const effectiveRole = (profile?.role || assignedRole) as UserRole;
         const liveUser: User = {
           id: authUser.id,
-          full_name: profile?.full_name || userData.full_name || 'Village Resident',
+          full_name: profile?.full_name || fullName,
           email,
-          phone: profile?.phone || userData.phone || '9876543210',
+          phone: profile?.phone || phone,
           role: effectiveRole,
-          department: profile?.department || userData.department || 'General',
+          department: profile?.department || department,
           panchayat_id: 'GP-KA-MND-042',
           is_verified: true,
           created_at: new Date().toISOString().split('T')[0]
         };
 
         setUser(liveUser);
-        const activeToken = session?.access_token || `sb_session_${authUser.id}`;
-        setToken(activeToken);
+        setToken(session.access_token);
         localStorage.setItem('villageverse_user', JSON.stringify(liveUser));
-        localStorage.setItem('villageverse_token', activeToken);
+        localStorage.setItem('villageverse_token', session.access_token);
         setLoading(false);
 
         return { success: true, redirectPath: getRedirectPathForRole(effectiveRole) };
       }
+
+      setLoading(false);
+      return { success: false, error: 'Registration failed. Please try again.', redirectPath: '/signup' };
     } catch (sbErr: any) {
-      console.warn('[Supabase Signup] Falling back to local state:', sbErr.message);
+      setLoading(false);
+      console.warn('[Supabase Signup Error]:', sbErr);
+      const rawMsg = (sbErr.message || '').toLowerCase();
+      let friendlyError = sbErr.message || 'Failed to create account in Supabase.';
+
+      if (rawMsg.includes('already') || rawMsg.includes('registered')) {
+        friendlyError = 'An account with this email address already exists. Please sign in instead.';
+      } else if (rawMsg.includes('rate limit')) {
+        friendlyError = 'Supabase built-in email rate limit reached (free tier limit: 3-4 emails/hour). If you have access to Supabase dashboard, disable "Confirm email" under Authentication -> Providers -> Email to allow instant registrations without email sending limits.';
+      } else if (rawMsg.includes('password')) {
+        friendlyError = sbErr.message;
+      }
+
+      return {
+        success: false,
+        error: friendlyError,
+        redirectPath: '/signup'
+      };
     }
-
-    // Local fallback
-    const newUser: User = {
-      id: `USR-${Date.now().toString().slice(-4)}`,
-      full_name: userData.full_name || 'New Resident',
-      email,
-      phone: userData.phone || '9876543210',
-      role: assignedRole,
-      department: userData.department || 'Ward Resident',
-      panchayat_id: 'GP-KA-MND-042',
-      is_verified: true,
-      created_at: new Date().toISOString().split('T')[0]
-    };
-
-    setUser(newUser);
-    const mockJwt = `sb_token_${newUser.id}_${Date.now()}`;
-    setToken(mockJwt);
-    localStorage.setItem('villageverse_user', JSON.stringify(newUser));
-    localStorage.setItem('villageverse_token', mockJwt);
-    setLoading(false);
-
-    return { success: true, redirectPath: getRedirectPathForRole(assignedRole) };
   };
 
   // Sign out
@@ -272,9 +341,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabaseAuth.signOut();
     } catch {}
-    setUser(mockUsers[0]);
     localStorage.removeItem('villageverse_token');
     localStorage.removeItem('villageverse_user');
+    setUser(null);
+    setToken(null);
   };
 
   // Reset password

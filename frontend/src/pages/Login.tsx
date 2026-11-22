@@ -18,6 +18,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('password123');
   const [selectedRole, setSelectedRole] = useState<UserRole>('Admin');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const demoRoles: Array<{ role: UserRole; email: string; label: string; icon: string }> = [
     { role: 'Super Admin', email: 'superadmin@villageverse.gov.in', label: 'Super Administrator', icon: '👑' },
@@ -29,15 +30,23 @@ export const Login: React.FC = () => {
   ];
 
   const handleQuickRoleSelect = (r: typeof demoRoles[0]) => {
+    setErrorMessage(null);
     setSelectedRole(r.role);
     setEmail(r.email);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setLoading(true);
-    const result = await login(email, password, selectedRole);
+    const result = await login(email.trim().toLowerCase(), password, selectedRole);
     setLoading(false);
+
+    if (!result.success) {
+      setErrorMessage(result.error || 'Authentication failed. Please check your email and password.');
+      return;
+    }
+
     navigate(result.redirectPath || '/dashboard');
   };
 
@@ -103,6 +112,13 @@ export const Login: React.FC = () => {
 
         {/* Main Sign-In Form */}
         <form onSubmit={handleLoginSubmit} className="glass-card p-6 rounded-3xl border border-slate-800 space-y-4">
+          {errorMessage && (
+            <div className="p-3 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-start space-x-2.5 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">{errorMessage}</div>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-slate-300 block mb-1.5">Department Official Email</label>
             <div className="relative">
