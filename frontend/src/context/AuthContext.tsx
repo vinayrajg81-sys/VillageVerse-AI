@@ -10,8 +10,27 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password?: string, targetRole?: UserRole) => Promise<{ success: boolean; redirectPath: string; error?: string }>;
-  signup: (userData: Partial<User>, password?: string) => Promise<{ success: boolean; redirectPath: string; error?: string; requiresVerification?: boolean; message?: string }>;
+  login: (email: string, password?: string, targetRole?: UserRole) => Promise<{ 
+    success: boolean; 
+    redirectPath: string; 
+    error?: string;
+    isUnconfirmedEmail?: boolean;
+  }>;
+  signup: (userData: Partial<User>, password?: string) => Promise<{ 
+    success: boolean; 
+    redirectPath: string; 
+    error?: string; 
+    requiresVerification?: boolean; 
+    message?: string;
+    isRateLimited?: boolean;
+    isDuplicate?: boolean;
+  }>;
+  resendVerification: (email: string) => Promise<{ 
+    success: boolean; 
+    message: string; 
+    error?: string; 
+    isRateLimited?: boolean; 
+  }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string; error?: string }>;
   switchRole: (role: UserRole) => void;
@@ -126,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string, 
     password = 'password123', 
     targetRole?: UserRole
-  ): Promise<{ success: boolean; redirectPath: string; error?: string }> => {
+  ): Promise<{ success: boolean; redirectPath: string; error?: string; isUnconfirmedEmail?: boolean }> => {
     setLoading(true);
 
     const cleanEmail = email.trim().toLowerCase();
@@ -146,8 +165,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user: authUser, session } = await supabaseAuth.signIn(cleanEmail, password);
       
       if (authUser && session) {
-        const profile = await supabaseAuth.getProfile(authUser.id);
+        let profile = await supabaseAuth.getProfile(authUser.id);
         const meta = authUser.user_metadata || {};
+        
+        // Self-heal profile in public.profiles table if missing
+        if (!profile) {
+          profile = await supabaseAuth.syncProfile(authUser.id, {
+            email: authUser.email || cleanEmail,
+            full_name: meta.full_name || cleanEmail.split('@')[0],
+            role: meta.role || targetRole || 'Citizen',
+            department: meta.department || 'General',
+            phone: meta.phone || '9845012399'
+          });
+        }
+
         const activeRole = (profile?.role || meta.role || targetRole || 'Citizen') as UserRole;
 
         const liveUser: User = {
@@ -177,9 +208,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         const rawMsg = (sbError.message || '').toLowerCase();
         let userFacingError = sbError.message || 'Login failed. Please verify your credentials.';
+        const isUnconfirmed = rawMsg.includes('email not confirmed') || rawMsg.includes('email_not_confirmed');
 
-        if (rawMsg.includes('email not confirmed')) {
-          userFacingError = 'Your email address has not been confirmed yet. Please click the confirmation link sent to your email, or disable "Confirm email" in Supabase Auth settings to enable immediate login.';
+        if (isUnconfirmed) {
+          userFacingError = 'Your email address has not been confirmed yet. Please verify your email using the link sent to your inbox, or disable "Confirm email" in Supabase Auth to enable instant login.';
+          return {
+            success: false,
+            isUnconfirmedEmail: true,
+            error: userFacingError,
+            redirectPath: '/login'
+          };
         } else if (rawMsg.includes('invalid login credentials') || rawMsg.includes('invalid_grant')) {
           userFacingError = 'Invalid email address or password. Please verify your credentials and try again.';
         } else if (rawMsg.includes('network') || rawMsg.includes('fetch')) {
@@ -232,7 +270,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (
     userData: Partial<User>, 
     password = 'password123'
-  ): Promise<{ success: boolean; redirectPath: string; error?: string; requiresVerification?: boolean; message?: string }> => {
+  ): Promise<{ 
+    success: boolean; 
+    redirectPath: string; 
+    error?: string; 
+    requiresVerification?: boolean; 
+    message?: string;
+    isRateLimited?: boolean;
+    isDuplicate?: boolean;
+  }> => {
     setLoading(true);
     const email = (userData.email || '').trim().toLowerCase();
     const assignedRole = (userData.role || 'Citizen') as UserRole;
@@ -258,11 +304,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         department
       });
 
-      // Check for duplicate account when user enumeration protection is enabled
+      // Check for duplicate account when user enumeration protection is enabled (empty identities array)
       if (authUser && Array.isArray(authUser.identities) && authUser.identities.length === 0) {
         setLoading(false);
         return {
           success: false,
+          isDuplicate: true,
           error: 'An account with this email address already exists. Please sign in instead.',
           redirectPath: '/signup'
         };
@@ -318,20 +365,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       console.warn('[Supabase Signup Error]:', sbErr);
       const rawMsg = (sbErr.message || '').toLowerCase();
-      let friendlyError = sbErr.message || 'Failed to create account in Supabase.';
+      
+      const isRateLimited = 
+        sbErr?.status === 429 || 
+        sbErr?.code === 'over_email_send_rate_limit' || 
+        sbErr?.code === 429 ||
+        sbErr?.error_code === 'over_email_send_rate_limit' ||
+        rawMsg.includes('rate limit') || 
+        rawMsg.includes('over_email_send_rate_limit') ||
+        rawMsg.includes('too many requests');
 
-      if (rawMsg.includes('already') || rawMsg.includes('registered')) {
-        friendlyError = 'An account with this email address already exists. Please sign in instead.';
-      } else if (rawMsg.includes('rate limit')) {
-        friendlyError = 'Supabase built-in email rate limit reached (free tier limit: 3-4 emails/hour). If you have access to Supabase dashboard, disable "Confirm email" under Authentication -> Providers -> Email to allow instant registrations without email sending limits.';
-      } else if (rawMsg.includes('password')) {
-        friendlyError = sbErr.message;
+      if (isRateLimited) {
+        return {
+          success: false,
+          isRateLimited: true,
+          error: 'Supabase email sending rate limit reached (Free tier default SMTP allows only 3-4 verification emails/hour).',
+          message: 'To bypass email limits: Disable "Confirm email" in Supabase Authentication -> Providers -> Email to allow instant registrations without email sending limits.',
+          redirectPath: '/signup'
+        };
+      }
+
+      const isDuplicate = 
+        rawMsg.includes('already') || 
+        rawMsg.includes('registered') || 
+        rawMsg.includes('exists');
+
+      if (isDuplicate) {
+        return {
+          success: false,
+          isDuplicate: true,
+          error: 'An account with this email address already exists. Please sign in instead.',
+          redirectPath: '/signup'
+        };
       }
 
       return {
         success: false,
-        error: friendlyError,
+        error: sbErr.message || 'Failed to create account in Supabase. Please try again.',
         redirectPath: '/signup'
+      };
+    }
+  };
+
+  // Resend Email Verification
+  const resendVerification = async (emailToResend: string): Promise<{ 
+    success: boolean; 
+    message: string; 
+    error?: string; 
+    isRateLimited?: boolean; 
+  }> => {
+    const cleanEmail = emailToResend.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, message: '', error: 'Please provide a valid email address.' };
+    }
+
+    try {
+      await supabaseAuth.resendConfirmation(cleanEmail);
+      return {
+        success: true,
+        message: `A verification link has been dispatched to ${cleanEmail}. Please check your inbox and spam folder.`
+      };
+    } catch (err: any) {
+      const rawMsg = (err.message || '').toLowerCase();
+      const isRateLimited = 
+        err?.status === 429 || 
+        err?.code === 'over_email_send_rate_limit' || 
+        err?.error_code === 'over_email_send_rate_limit' || 
+        rawMsg.includes('rate limit') || 
+        rawMsg.includes('over_email_send_rate_limit');
+
+      if (isRateLimited) {
+        return {
+          success: false,
+          isRateLimited: true,
+          error: 'Email rate limit reached for this hour (3-4 emails/hr). Please disable "Confirm email" in Supabase Dashboard to log in directly.',
+          message: ''
+        };
+      }
+
+      return {
+        success: false,
+        error: err.message || 'Failed to resend confirmation email.',
+        message: ''
       };
     }
   };
@@ -383,6 +498,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         signup,
+        resendVerification,
         logout,
         resetPassword,
         switchRole,

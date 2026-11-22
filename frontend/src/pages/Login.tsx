@@ -1,16 +1,16 @@
 // VillageVerse AI: Government-Grade Authentication Portal
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserRole } from '../types';
 import { 
   Box, ShieldCheck, Lock, Mail, ArrowRight, Sparkles, 
-  CheckCircle2, Users, Building, AlertCircle 
+  CheckCircle2, Users, Building, AlertCircle, RefreshCw, AlertTriangle 
 } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, resendVerification } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -19,6 +19,20 @@ export const Login: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('Admin');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUnconfirmed, setIsUnconfirmed] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const demoRoles: Array<{ role: UserRole; email: string; label: string; icon: string }> = [
     { role: 'Super Admin', email: 'superadmin@villageverse.gov.in', label: 'Super Administrator', icon: '👑' },
@@ -31,23 +45,57 @@ export const Login: React.FC = () => {
 
   const handleQuickRoleSelect = (r: typeof demoRoles[0]) => {
     setErrorMessage(null);
+    setIsUnconfirmed(false);
+    setResendStatus(null);
     setSelectedRole(r.role);
     setEmail(r.email);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || loading) return;
+
     setErrorMessage(null);
+    setIsUnconfirmed(false);
+    setResendStatus(null);
+    isSubmittingRef.current = true;
     setLoading(true);
-    const result = await login(email.trim().toLowerCase(), password, selectedRole);
-    setLoading(false);
 
-    if (!result.success) {
-      setErrorMessage(result.error || 'Authentication failed. Please check your email and password.');
-      return;
+    try {
+      const result = await login(email.trim().toLowerCase(), password, selectedRole);
+
+      if (!result.success) {
+        if (result.isUnconfirmedEmail) {
+          setIsUnconfirmed(true);
+        }
+        setErrorMessage(result.error || 'Authentication failed. Please check your email and password.');
+        return;
+      }
+
+      navigate(result.redirectPath || '/dashboard');
+    } finally {
+      setLoading(false);
+      isSubmittingRef.current = false;
     }
+  };
 
-    navigate(result.redirectPath || '/dashboard');
+  const handleResendConfirmation = async () => {
+    if (resending || cooldown > 0 || !email) return;
+    setResending(true);
+    setResendStatus(null);
+
+    const res = await resendVerification(email);
+    setResending(false);
+
+    if (res.success) {
+      setResendStatus('Verification email resent! Check your inbox or spam folder.');
+      setCooldown(60);
+    } else {
+      setResendStatus(res.error || 'Failed to resend confirmation email.');
+      if (res.isRateLimited) {
+        setCooldown(60);
+      }
+    }
   };
 
   return (
@@ -113,9 +161,41 @@ export const Login: React.FC = () => {
         {/* Main Sign-In Form */}
         <form onSubmit={handleLoginSubmit} className="glass-card p-6 rounded-3xl border border-slate-800 space-y-4">
           {errorMessage && (
-            <div className="p-3 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-start space-x-2.5 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">{errorMessage}</div>
+            <div className={`p-3.5 rounded-2xl border text-xs space-y-2 animate-in fade-in ${
+              isUnconfirmed 
+                ? 'bg-amber-950/70 border-amber-500/60 text-amber-200' 
+                : 'bg-rose-950/60 border-rose-500/50 text-rose-200'
+            }`}>
+              <div className="flex items-start space-x-2.5">
+                {isUnconfirmed ? (
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                )}
+                <div className="leading-relaxed">{errorMessage}</div>
+              </div>
+
+              {isUnconfirmed && (
+                <div className="pt-1.5 border-t border-amber-700/50 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resending || cooldown > 0}
+                    className="text-[11px] font-semibold text-amber-300 hover:text-white flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${resending ? 'animate-spin' : ''}`} />
+                    <span>{cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Verification Email'}</span>
+                  </button>
+                  <span className="text-[10px] text-amber-400/80">Check spam/inbox</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {resendStatus && (
+            <div className="p-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs flex items-start space-x-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div>{resendStatus}</div>
             </div>
           )}
 

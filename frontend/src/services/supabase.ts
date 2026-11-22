@@ -42,8 +42,9 @@ export const supabaseAuth = {
     phone?: string;
     department?: string;
   }) => {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       options: {
         data: {
@@ -51,7 +52,22 @@ export const supabaseAuth = {
           role: metadata.role || 'Citizen',
           phone: metadata.phone || '',
           department: metadata.department || 'General Resident'
-        }
+        },
+        emailRedirectTo: redirectUrl
+      }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  // 2b. Resend Verification Confirmation Email
+  resendConfirmation: async (email: string) => {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+      options: {
+        emailRedirectTo: redirectUrl
       }
     });
     if (error) throw error;
