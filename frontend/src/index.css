@@ -281,3 +281,125 @@
   border-bottom: 2px solid rgba(56, 189, 248, 0.7);
   border-right: 2px solid rgba(56, 189, 248, 0.7);
 }
+
+/* ============================================================
+   LIGHT MODE COMPREHENSIVE SYSTEM
+   ============================================================ */
+html.light body,
+.light .min-h-screen {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.light .aurora-bg {
+  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+              radial-gradient(circle at 10% 30%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+              radial-gradient(circle at 90% 40%, rgba(99, 102, 241, 0.06) 0%, transparent 55%),
+              radial-gradient(circle at 50% 100%, #f1f5f9 0%, #e2e8f0 100%) !important;
+}
+
+.light .cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px) !important;
+}
+
+.light .glass-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(203, 213, 225, 0.8) !important;
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  color: #0f172a !important;
+}
+
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(226, 232, 240, 0.95) !important;
+  box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  color: #0f172a !important;
+}
+
+.light .glass-card:hover {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light .glass-pill {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+.light .text-white {
+  color: #0f172a !important;
+}
+
+.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+.light .bg-\[\#080e1e\]\/90,
+.light .bg-\[\#09152e\]\/95,
+.light .bg-slate-900,
+.light .bg-slate-950,
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90,
+.light .bg-slate-950\/80,
+.light .bg-slate-950\/85 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light .bg-slate-800,
+.light .bg-slate-800\/80 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.light .border-slate-800,
+.light .border-slate-700,
+.light .border-slate-700\/80,
+.light .border-white\/\[0\.06\],
+.light .border-white\/\[0\.08\],
+.light .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+.light input,
+.light select,
+.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light .recharts-default-tooltip {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light .recharts-cartesian-grid line {
+  stroke: #e2e8f0 !important;
+}
+
+.light .recharts-text {
+  fill: #64748b !important;
+}

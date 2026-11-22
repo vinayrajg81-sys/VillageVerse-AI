@@ -5,7 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import {
   LayoutDashboard, Box, Sprout, Droplets, Milestone, Zap, HeartPulse,
   GraduationCap, Trash2, Trees, ShieldAlert, Sparkles, TrendingUp, Sliders,
-  MessageSquareWarning, Leaf, Bot, FileText, Users, Settings, ChevronRight, Globe, Activity
+  MessageSquareWarning, Leaf, Bot, FileText, Users, Settings, ChevronRight, Globe, Activity, X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -62,7 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
       items: [
         { num: '12', path: '/future-prediction', label: t('m_future_prediction'), icon: TrendingUp },
         { num: '13', path: '/development-planner', label: t('m_development_planner'), icon: Sparkles },
-        { num: '14', path: '/simulation', label: t('m_simulation'), icon: Sliders, badge: 'Simulator' },
         { num: '17', path: '/chatbot', label: t('m_chatbot'), icon: Bot, badge: 'AI' }
       ]
     },
@@ -90,8 +89,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
 
       {/* Floating Translucent Sidebar Dock */}
       <aside
-        className={`fixed top-12 bottom-4 left-4 z-40 w-64 glass-panel border border-white/[0.08] shadow-[0_24px_60px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 ease-in-out lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
+        className={`fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] lg:top-12 lg:bottom-4 lg:left-4 lg:w-64 z-50 glass-panel border border-white/[0.08] shadow-[0_24px_60px_rgba(0,0,0,0.6)] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
@@ -107,6 +106,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
               <p className="text-[10px] text-slate-400 font-mono">Foundry Platform</p>
             </div>
           </div>
+          <button
+            onClick={onCloseMobile}
+            className="lg:hidden p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white transition"
+            aria-label="Close Sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Public Portal Quick Return Pill */}

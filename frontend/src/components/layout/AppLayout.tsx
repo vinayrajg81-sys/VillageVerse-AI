@@ -24,7 +24,7 @@ export const AppLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white transition-colors duration-200">
       {/* 1. Animated Ambient Aurora Light Mesh */}
       <div className="aurora-bg">
         <div className="aurora-orb-1" />

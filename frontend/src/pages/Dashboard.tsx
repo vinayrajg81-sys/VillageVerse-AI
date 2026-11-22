@@ -18,7 +18,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AnimatedCounter } from '../components/common/AnimatedCounter';
 import { DroneCameraPreview } from '../components/common/DroneCameraPreview';
-import { TimelineSlider, TimelineYear, TIMELINE_DATA } from '../components/common/TimelineSlider';
 import { HierarchicalGovernance } from '../components/common/HierarchicalGovernance';
 import { IoTMonitoringCenter } from '../components/common/IoTMonitoringCenter';
 import { PanchayatSelectorModal } from '../components/common/PanchayatSelectorModal';
@@ -31,7 +30,6 @@ export const Dashboard: React.FC = () => {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [timelineYear, setTimelineYear] = useState<TimelineYear>(2026);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [dismissedAlert, setDismissedAlert] = useState(false);
@@ -90,22 +88,20 @@ export const Dashboard: React.FC = () => {
     setTimeout(() => setCopiedSummary(false), 2000);
   };
 
-  const currentTimelineData = TIMELINE_DATA[timelineYear];
-
   const healthTrendData = [
-    { day: 'Mon', score: 82, water: 79, energy: 88, agri: 84 },
-    { day: 'Tue', score: 83, water: 81, energy: 89, agri: 85 },
-    { day: 'Wed', score: 85, water: 80, energy: 90, agri: 86 },
-    { day: 'Thu', score: 84, water: 82, energy: 91, agri: 87 },
-    { day: 'Fri', score: 86, water: 84, energy: 91, agri: 88 },
-    { day: 'Sat', score: 86, water: 84, energy: 92, agri: 88 },
-    { day: 'Today', score: currentTimelineData.healthScore, water: currentTimelineData.waterAvailability, energy: 91, agri: 88 }
+    { day: 'Mon', score: Math.max(50, activePanchayat.health_score - 4), water: Math.max(50, activePanchayat.water_score - 4), energy: 88, agri: 84 },
+    { day: 'Tue', score: Math.max(50, activePanchayat.health_score - 3), water: Math.max(50, activePanchayat.water_score - 2), energy: 89, agri: 85 },
+    { day: 'Wed', score: Math.max(50, activePanchayat.health_score - 1), water: Math.max(50, activePanchayat.water_score - 3), energy: 90, agri: 86 },
+    { day: 'Thu', score: Math.max(50, activePanchayat.health_score - 2), water: Math.max(50, activePanchayat.water_score - 1), energy: 91, agri: 87 },
+    { day: 'Fri', score: activePanchayat.health_score, water: activePanchayat.water_score, energy: activePanchayat.electricity_score, agri: activePanchayat.agriculture_score },
+    { day: 'Sat', score: activePanchayat.health_score, water: activePanchayat.water_score, energy: activePanchayat.electricity_score, agri: activePanchayat.agriculture_score },
+    { day: 'Today', score: activePanchayat.health_score, water: activePanchayat.water_score, energy: activePanchayat.electricity_score, agri: activePanchayat.agriculture_score }
   ];
 
   const energyMixData = [
-    { name: 'Solar Microgrid', value: timelineYear === 2035 ? 78 : timelineYear === 2030 ? 60 : 45.4, color: '#10b981' },
-    { name: 'Grid Feeder', value: timelineYear === 2035 ? 12 : timelineYear === 2030 ? 30 : 48.6, color: '#06b6d4' },
-    { name: 'Biogas/Backup', value: timelineYear === 2035 ? 10 : 10, color: '#f59e0b' }
+    { name: 'Solar Microgrid', value: 45.4, color: '#10b981' },
+    { name: 'Grid Feeder', value: 44.6, color: '#06b6d4' },
+    { name: 'Biogas/Backup', value: 10, color: '#f59e0b' }
   ];
 
   if (loading || !data) {
@@ -123,13 +119,13 @@ export const Dashboard: React.FC = () => {
 
   const { profile, kpis, weather, recent_activities } = data;
 
-  // Scaled dynamic stats based on activePanchayat & timelineYear
-  const dynamicPop = timelineYear === 2025 ? Math.round(activePanchayat.population * 0.96) : timelineYear === 2026 ? activePanchayat.population : timelineYear === 2030 ? Math.round(activePanchayat.population * 1.15) : Math.round(activePanchayat.population * 1.32);
-  const dynamicHouseholds = timelineYear === 2025 ? Math.round(activePanchayat.households * 0.95) : timelineYear === 2026 ? activePanchayat.households : timelineYear === 2030 ? Math.round(activePanchayat.households * 1.15) : Math.round(activePanchayat.households * 1.35);
-  const dynamicHealth = timelineYear === 2025 ? Math.max(50, activePanchayat.health_score - 4) : timelineYear === 2026 ? activePanchayat.health_score : timelineYear === 2030 ? Math.min(97, activePanchayat.health_score + 6) : Math.min(99, activePanchayat.health_score + 11);
-  const dynamicWater = timelineYear === 2025 ? Math.max(50, activePanchayat.water_score - 5) : timelineYear === 2026 ? activePanchayat.water_score : timelineYear === 2030 ? Math.min(96, activePanchayat.water_score + 8) : Math.min(99, activePanchayat.water_score + 14);
-  const dynamicSolar = timelineYear === 2025 ? 90 : timelineYear === 2026 ? 120 : timelineYear === 2030 ? 320 : 580;
-  const dynamicCarbon = timelineYear === 2025 ? Math.max(50, activePanchayat.carbon_score - 5) : timelineYear === 2026 ? activePanchayat.carbon_score : timelineYear === 2030 ? Math.min(95, activePanchayat.carbon_score + 9) : Math.min(99, activePanchayat.carbon_score + 16);
+  // Real-time dynamic stats directly from activePanchayat
+  const dynamicPop = activePanchayat.population;
+  const dynamicHouseholds = activePanchayat.households;
+  const dynamicHealth = activePanchayat.health_score;
+  const dynamicWater = activePanchayat.water_score;
+  const dynamicSolar = 120;
+  const dynamicCarbon = activePanchayat.carbon_score;
 
   return (
     <div className="space-y-6">
@@ -271,13 +267,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. TEMPORAL TWIN TIMELINE SLIDER (PHASE 5 INTEGRATION) */}
-      <TimelineSlider
-        currentYear={timelineYear}
-        onChange={(yr) => setTimelineYear(yr)}
-      />
-
-      {/* 4. EXECUTIVE VITAL GAUGES & ANIMATED KPI DECK */}
+      {/* EXECUTIVE VITAL GAUGES & ANIMATED KPI DECK */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
         {/* Animated Radial Village Health Score Gauge */}
         <div className="col-span-2 glass-card p-4 rounded-[20px] border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-slate-900/80 to-slate-900/90 flex items-center justify-between shadow-xl">

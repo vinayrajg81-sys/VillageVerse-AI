@@ -11,7 +11,6 @@ import {
   Sun, Moon, Sunrise, Sunset, Video, Crosshair, Download, FileText,
   Navigation, Eye, Plane, Building2, ChevronDown
 } from 'lucide-react';
-import { TimelineSlider, TimelineYear } from '../components/common/TimelineSlider';
 import { GISMapViewer } from '../components/common/GISMapViewer';
 
 type TimeOfDay = 'dawn' | 'day' | 'golden' | 'night';
@@ -27,7 +26,6 @@ export const DigitalTwin: React.FC = () => {
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('day');
   const [cameraMode, setCameraMode] = useState<CameraViewMode>('orbit');
-  const [timelineYear, setTimelineYear] = useState<TimelineYear>(2026);
   const [loading, setLoading] = useState(true);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -341,43 +339,31 @@ export const DigitalTwin: React.FC = () => {
       trees.push(tree);
     }
 
-    // 14. Timeline Horizon 2030 & 2035 Futuristic Additions!
+    // 14. Smart Infrastructure Additions (Canal Solar, EV Hub, Biogas)
     const futuristicAssetsGroup = new THREE.Group();
-    if (timelineYear >= 2030) {
-      // Canal-top solar panels
-      const canalSolar = new THREE.Mesh(
-        new THREE.BoxGeometry(18, 0.1, 2.4),
-        new THREE.MeshStandardMaterial({ color: 0x06b6d4, metalness: 0.8, roughness: 0.2 })
-      );
-      canalSolar.position.set(0, 0.8, -8);
-      futuristicAssetsGroup.add(canalSolar);
+    // Canal-top solar panels
+    const canalSolar = new THREE.Mesh(
+      new THREE.BoxGeometry(18, 0.1, 2.4),
+      new THREE.MeshStandardMaterial({ color: 0x06b6d4, metalness: 0.8, roughness: 0.2 })
+    );
+    canalSolar.position.set(0, 0.8, -8);
+    futuristicAssetsGroup.add(canalSolar);
 
-      // EV Public Charging Station
-      const evHub = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 1.2, 1.5),
-        new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.3 })
-      );
-      evHub.position.set(3, 0.6, 2.5);
-      futuristicAssetsGroup.add(evHub);
-    }
+    // EV Public Charging Station
+    const evHub = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 1.2, 1.5),
+      new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.3 })
+    );
+    evHub.position.set(3, 0.6, 2.5);
+    futuristicAssetsGroup.add(evHub);
 
-    if (timelineYear >= 2035) {
-      // Autonomous Drone Delivery Tower
-      const droneTower = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.5, 0.8, 6, 8),
-        new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.9 })
-      );
-      droneTower.position.set(-10, 3, -10);
-      futuristicAssetsGroup.add(droneTower);
-
-      // Micro Biogas Digester
-      const bioDigester = new THREE.Mesh(
-        new THREE.SphereGeometry(1.8, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.3 })
-      );
-      bioDigester.position.set(12, 1.2, 12);
-      futuristicAssetsGroup.add(bioDigester);
-    }
+    // Micro Biogas Digester
+    const bioDigester = new THREE.Mesh(
+      new THREE.SphereGeometry(1.8, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.3 })
+    );
+    bioDigester.position.set(12, 1.2, 12);
+    futuristicAssetsGroup.add(bioDigester);
     scene.add(futuristicAssetsGroup);
 
     // 15. Raycaster for Selection
@@ -522,7 +508,7 @@ export const DigitalTwin: React.FC = () => {
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
     };
-  }, [viewMode, assets, timeOfDay, cameraMode, timelineYear, activePanchayat.id]);
+  }, [viewMode, assets, timeOfDay, cameraMode, activePanchayat.id]);
 
   const handleDroneInspect = () => {
     setActionNotice(`Autonomous UAV dispatched to scan ${selectedAsset?.name || 'Asset'}. Thermal telemetry stream active.`);
@@ -622,14 +608,7 @@ export const DigitalTwin: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Timeline Horizon Slider Integration */}
-      <TimelineSlider
-        currentYear={timelineYear}
-        onChange={(yr) => setTimelineYear(yr)}
-        compact={true}
-      />
-
-      {/* 3. Category Filter Chips */}
+      {/* 2. Category Filter Chips */}
       <div className="flex items-center space-x-2 overflow-x-auto pb-1 no-scrollbar text-xs">
         {categories.map((cat) => (
           <button
